@@ -8,8 +8,8 @@ class Maze_Generator:
         self.maze = [[0 for _ in range(self.width)] for _ in range(self.height)]
 
     def draw_cell(self, stdscr, row, col, cell_value, color):
-        y = row * 2
-        x = col * 2
+        y = row * 3
+        x = col * 3
 
         max_y, max_x = stdscr.getmaxyx()
         if y + 2 >= max_y or x + 2 >= max_x:
@@ -19,6 +19,7 @@ class Maze_Generator:
         east = (cell_value & 2) != 0
         south = (cell_value & 4) != 0
         west = (cell_value & 8) != 0
+
 
         up = "─" if north else " "
         down = "─" if south else " "
@@ -55,8 +56,8 @@ class Maze_Generator:
         stdscr.refresh()
 
     def mark_special(self, stdscr, row, col, char, color):
-        y = row * 2 + 1
-        x = col * 2 + 1
+        y = row * 3 + 1
+        x = col * 3 + 1
 
         max_y, max_x = stdscr.getmaxyx()
         if y >= max_y or x >= max_x:
@@ -78,8 +79,8 @@ class Maze_Generator:
         }
 
         for direction in path:
-            y = row * 2 + 1
-            x = col * 2 + 1
+            y = row * 3 + 1
+            x = col * 3 + 1
 
             max_y, max_x = stdscr.getmaxyx()
             if y < max_y and x < max_x:
@@ -90,8 +91,8 @@ class Maze_Generator:
             col += dc
 
         # dernière case
-        y = row * 2 + 1
-        x = col * 2 + 1
+        y = row * 3 + 1
+        x = col * 3 + 1
 
         max_y, max_x = stdscr.getmaxyx()
         if y < max_y and x < max_x:
@@ -149,8 +150,8 @@ def main(stdscr):
 
     max_y, max_x = stdscr.getmaxyx()
 
-    needed_y = height * 2 + 1
-    needed_x = width * 2 + 1
+    needed_y = height * 3 + 1
+    needed_x = width * 3 + 1
 
     if needed_y > max_y or needed_x > max_x:
         stdscr.clear()
