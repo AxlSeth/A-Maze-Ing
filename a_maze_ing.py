@@ -30,3 +30,16 @@ class Maze_Generator:
         stdscr.addstr(y + 2, x, "└", color)
         stdscr.addstr(y + 2, x + 1, down, color)
         stdscr.addstr(y + 2, x + 2, "┘", color)
+    def generate_maze(self, stdcr, maze, width, height):
+        curses.start_color()
+        curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(3, curses.COLOR_RED, curses.COLOR_BLACK)
+
+        wall_color = curses.color_pair(1)
+
+        for row in range(height):
+            for col in range(width):
+                cell_value = maze[row][col]
+                self.draw_cell(stdcr, row, col, cell_value, wall_color)
+        
