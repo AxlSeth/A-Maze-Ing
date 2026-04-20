@@ -3,11 +3,11 @@ from mlx import Mlx
 
 CELL_SIZE      = 20
 WALL_THICKNESS = 3
-COLOR_WALL     = 0xFFFFFF
-COLOR_BG       = 0x000000
-COLOR_ENTRY    = 0x00FF00
-COLOR_EXIT     = 0xFF0000
-COLOR_PATH     = 0x00FFFF
+COLOR_WALL     = 0xFFFFFFFF  # ← FF au début
+COLOR_BG       = 0xFF000000  # ← FF au début
+COLOR_ENTRY    = 0xFF00FF00  # ← FF au début
+COLOR_EXIT     = 0xFFFF0000  # ← FF au début
+COLOR_PATH     = 0xFF00FFFF  # ← FF au début
 
 
 class Maze_Generator:
@@ -27,12 +27,10 @@ class Maze_Generator:
     def generate(self, seed: int = None):
         if seed is not None:
             random.seed(seed)
-
         self.maze = [[0xF for _ in range(self.width)]
                      for _ in range(self.height)]
         visited = [[False for _ in range(self.width)]
                    for _ in range(self.height)]
-
         directions = [
             (-1,  0, 1, 4),
             ( 1,  0, 4, 1),
@@ -59,18 +57,15 @@ class Maze_Generator:
         from collections import deque
         sr, sc = entry
         er, ec = exit_point
-
         queue = deque([(sr, sc, [])])
         visited = [[False] * self.width for _ in range(self.height)]
         visited[sr][sc] = True
-
         moves = {
             'N': (-1,  0, 1),
             'S': ( 1,  0, 4),
             'E': ( 0,  1, 2),
             'W': ( 0, -1, 8),
         }
-
         while queue:
             row, col, path = queue.popleft()
             if row == er and col == ec:
@@ -102,23 +97,24 @@ class MazeDisplay:
         self.win_ptr = self.mlx.mlx_new_window(
             self.mlx_ptr, self.win_w, self.win_h, "A-Maze-ing"
         )
-
-        # IMAGE BUFFER
-        self.img = self.mlx.mlx_new_image(self.mlx_ptr, self.win_w, self.win_h)
+        self.img = self.mlx.mlx_new_image(
+            self.mlx_ptr, self.win_w, self.win_h
+        )
         self.addr, self.bpp, self.line_len, self.endian = \
             self.mlx.mlx_get_data_addr(self.img)
 
-    def put_pixel(self, x, y, color):
-        bytes_per_pixel = self.bpp // 8
-        offset = y * self.line_len + x * bytes_per_pixel
+    def put_pixel(self, x: int, y: int, color: int) -> None:
+        if x < 0 or y < 0 or x >= self.win_w or y >= self.win_h:
+            return
+        offset = y * self.line_len + x * (self.bpp // 8)
         self.addr[offset:offset+4] = color.to_bytes(4, 'little')
 
-    def draw_rect(self, x, y, w, h, color):
+    def draw_rect(self, x: int, y: int, w: int, h: int, color: int) -> None:
         for row in range(h):
             for col in range(w):
                 self.put_pixel(x + col, y + row, color)
 
-    def draw_cell(self, row, col, cell_value):
+    def draw_cell(self, row: int, col: int, cell_value: int) -> None:
         north = (cell_value & 1) != 0
         east  = (cell_value & 2) != 0
         south = (cell_value & 4) != 0
@@ -130,7 +126,6 @@ class MazeDisplay:
         C  = CELL_SIZE
 
         self.draw_rect(px, py, C, C, COLOR_BG)
-
         if north:
             self.draw_rect(px, py, C, T, COLOR_WALL)
         if south:
@@ -140,26 +135,30 @@ class MazeDisplay:
         if east:
             self.draw_rect(px + C - T, py, T, C, COLOR_WALL)
 
-    def draw_maze(self):
-        # clear image
-        self.draw_rect(0, 0, self.win_w, self.win_h, COLOR_BG)
+    def draw_maze(self) -> None:
+        # effacer
+        size = self.line_len * self.win_h
+        self.addr[0:size] = b'\x00\x00\x00\xff' * (size // 4)  # ← rapide
 
+        # dessiner les cellules
         for row in range(self.mg.height):
             for col in range(self.mg.width):
                 self.draw_cell(row, col, self.mg.maze[row][col])
 
+        # entrée et sortie
         self.mark_special(*self.entry, COLOR_ENTRY)
         self.mark_special(*self.exit_point, COLOR_EXIT)
 
+        # chemin
         if self.show_path and self.path:
             self.draw_path()
 
-        # PUSH IMAGE → écran
+        # envoyer le buffer
         self.mlx.mlx_put_image_to_window(
             self.mlx_ptr, self.win_ptr, self.img, 0, 0
         )
 
-        # texte (direct window)
+        # menu texte (par-dessus le buffer)
         menu_y = self.mg.height * CELL_SIZE + WALL_THICKNESS + 5
         self.mlx.mlx_string_put(
             self.mlx_ptr, self.win_ptr,
@@ -167,16 +166,16 @@ class MazeDisplay:
             "1:regen  2:path  ESC:quit"
         )
 
-    def mark_special(self, row, col, color):
-        T = WALL_THICKNESS
-        C = CELL_SIZE
-        px = col * C + T + 1
-        py = row * C + T + 1
+    def mark_special(self, row: int, col: int, color: int) -> None:
+        T    = WALL_THICKNESS
+        C    = CELL_SIZE
+        px   = col * C + T + 1
+        py   = row * C + T + 1
         size = C - 2 * T - 2
         self.draw_rect(px, py, size, size, color)
 
-    def draw_path(self):
-        moves = {'N':(-1,0),'S':(1,0),'E':(0,1),'W':(0,-1)}
+    def draw_path(self) -> None:
+        moves = {'N':(-1,0), 'S':(1,0), 'E':(0,1), 'W':(0,-1)}
         row, col = self.entry
         for d in self.path:
             self.mark_special(row, col, COLOR_PATH)
@@ -185,23 +184,32 @@ class MazeDisplay:
             col += dc
         self.mark_special(row, col, COLOR_PATH)
 
-    def run(self):
-        def on_loop(param):
+    def run(self) -> None:
+        def loop(_):
             self.draw_maze()
 
-        def on_key(keycode, param):
-            if keycode == 49:
+        def key(keycode, _):
+            if keycode == 49:        # '1' → régénérer
                 self.mg.generate()
                 self.path = self.mg.solve(self.entry, self.exit_point)
                 self.show_path = False
-            elif keycode == 50:
+            elif keycode == 50:      # '2' → toggle chemin
                 self.show_path = not self.show_path
-            elif keycode == 65307:
+            elif keycode == 65307:   # Escape → quitter
                 self.mlx.mlx_loop_exit(self.mlx_ptr)
 
-        self.mlx.mlx_loop_hook(self.mlx_ptr, on_loop, None)
-        self.mlx.mlx_key_hook(self.win_ptr, on_key, None)
+        def on_close(_):             # bouton ✕
+            self.mlx.mlx_loop_exit(self.mlx_ptr)
+
+        self.mlx.mlx_loop_hook(self.mlx_ptr, loop, None)
+        self.mlx.mlx_key_hook(self.win_ptr, key, None)
+        self.mlx.mlx_hook(self.win_ptr, 33, 0, on_close, None)
         self.mlx.mlx_loop(self.mlx_ptr)
+
+        # cleanup dans l'ordre obligatoire
+        self.mlx.mlx_destroy_image(self.mlx_ptr, self.img)
+        self.mlx.mlx_destroy_window(self.mlx_ptr, self.win_ptr)
+        self.mlx.mlx_release(self.mlx_ptr)
 
 
 def load_config(filename: str) -> dict:
@@ -209,7 +217,7 @@ def load_config(filename: str) -> dict:
     with open(filename, "r") as f:
         for line in f:
             line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
+            if not line or "=" not in line:
                 continue
             key, value = line.split("=", 1)
             key   = key.strip()
@@ -219,17 +227,13 @@ def load_config(filename: str) -> dict:
             elif key in ["ENTRY", "EXIT"]:
                 r, c = value.split(",")
                 config[key] = (int(r), int(c))
-            else:
-                config[key] = value
     return config
 
 
 if __name__ == "__main__":
-    config     = load_config("config.txt")
-
-    mg = Maze_Generator(config["WIDTH"], config["HEIGHT"])
+    config  = load_config("config.txt")
+    mg      = Maze_Generator(config["WIDTH"], config["HEIGHT"])
     mg.generate(seed=42)
-
     display = MazeDisplay(mg, config["ENTRY"], config["EXIT"])
     display.path = mg.solve(config["ENTRY"], config["EXIT"])
     display.run()
